@@ -1,0 +1,41 @@
+studySpec:
+  metrics:
+  - metricId: val_fvu
+    goal: MINIMIZE
+  parameters:
+  - parameterId: stride
+    integerValueSpec:
+      minValue: 10
+      maxValue: 300
+    scaleType: UNIT_LINEAR_SCALE
+  - parameterId: seq_len
+    discreteValueSpec:
+      values:
+      - 128
+      - 256
+      - 512
+  algorithm: ALGORITHM_UNSPECIFIED
+  measurementSelectionType: BEST_MEASUREMENT
+trialJobSpec:
+  workerPoolSpecs:
+  - machineSpec:
+      machineType: g2-standard-4
+      acceleratorType: NVIDIA_L4
+      acceleratorCount: 1
+    replicaCount: 1
+    containerSpec:
+      imageUri: us-docker.pkg.dev/vertex-ai/training/pytorch-gpu.2-1.py310:latest
+      command:
+      - bash
+      - -c
+      args:
+      - >
+        gcloud storage cp gs://omega-pure-data/scripts/vertex_mae_blitz_v5.py . && 
+        pip install gcsfs pandas pyarrow numpy cloudml-hypertune && 
+        python3 vertex_mae_blitz_v5.py --gcs_input=gs://omega-pure-data/ticker_matrix_shards --logical_batch_size=4096 --micro_batch_size=64 --max_steps=2000 --report_freq=500 "$@"
+      - _
+  scheduling:
+    timeout: 86400s
+    restartJobOnWorkerRestart: true
+  baseOutputDirectory:
+    outputUriPrefix: gs://omega-pure-data/omega_models/hpo_blitz_v5
