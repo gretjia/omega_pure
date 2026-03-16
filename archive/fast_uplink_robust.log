@@ -1,0 +1,7 @@
+📡 Fetching list of files...
+🎯 Found 743 shards. Starting highly resilient transport with 2 threads...
+[1/743] ✔️ [DONE] 20240221_fbd5c8b.parquet
+[2/743] ✔️ [DONE] 20230825_fbd5c8b.parquet
+[3/743] ✔️ [DONE] 20241203_b07c2229.parquet
+[4/743] ✔️ [DONE] 20250516_fbd5c8b.parquet
+scp: Connection closed
