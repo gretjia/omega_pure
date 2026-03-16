@@ -24,18 +24,22 @@ This directory is the single source of truth for the active system state, blocke
 *   `PIPELINE_REBUILD_PLAN.md`: **[CRITICAL]** Read this to understand why we are currently running pure-CPU Numpy scripts instead of the GPU. It explains the "Symbol Paradox" and the AMD driver crash history.
 *   `LINUX1_POST_MORTEM.md`: Detailed hardware-level diagnostics on why the legacy PyTorch/JAX `omega_tensor_materializer` scripts crash the `linux1-lx` kernel.
 
-### `/tools/` (ETL & Verification Pipeline)
-Utility scripts for data reconstruction and mathematical validation.
-*   **`tools/omega_tensor_materializer_numpy_streaming.py`**: **[ACTIVE]** The resilient, single-threaded, pure-Numpy, memory-safe data processor currently running on Windows to reconstruct the 188GB Base Matrix *with* the `symbol` and `time` columns intact.
-*   **`tools/repack_to_ticker_shards.py`**: **[PENDING]** "The Chrono-Forge". The Architect's DuckDB Map-Reduce engine. It will scatter the output of the Numpy materializer into isolated, chronologically sorted ticker files (e.g., `000001.parquet`) ready for 2D ingestion.
-*   `tools/cloud_math_proof.py`: The Vertex AI cloud script used to blindly verify the core equations without symbols.
+### Mathematical Core (The Physics & Truth)
+These files contain the pure, hardware-agnostic implementations of the Epistemic Trinity (SRL, Epiplexity) and the loss functions. Modifying these alters the fundamental scientific hypothesis of the project.
+*   **`tools/omega_tensor_materializer_numpy_streaming.py`**: **[ACTIVE]** Contains the active, stable `np_compute_srl_residual` and `np_compute_epiplexity` mathematical kernels currently running on the Windows node.
+*   **`tools/cloud_math_proof.py`**: The raw mathematical verification engine used to prove the Asymmetry Ratio on GCP without ML models.
+*   **`omega_2d_folded_mae.py`**: Defines the mathematical objective (FVU Loss) and the native 2D Spatio-Temporal topological structure (`SpatioTemporal2DMAE`).
 
-### Root Directory (The 2D ML Pipeline)
-*   **`omega_2d_folded_mae.py`**: The heart of the new architecture. Implements `SpatioTemporal2DMAE` (Native 2D CNN) and the `TimeFoldedDataset` (Zero-copy VRAM 1D->2D geometric folding).
-*   **`omega_parallel_crucible.py`**: The Talebian Oracle backtester. Embarrassingly parallel, isolated event-driven studies.
-*   **`blitz_v5_hpo_config.yaml`**: The Google Vizier hyperparameter search space definitions (searching for `days` and `ticks_per_day`, having abandoned 1D `stride`).
-*   **`mac_blitz_v5_ignition.py`**: The master deployment script. Submits the 100-node L4 GPU Google Vizier HPO task.
-*   `vertex_mae_blitz_v5.py`: The payload executed on Vertex AI by the ignition script.
+### Engineering (ETL, Training & Backtesting)
+These files handle data movement, model optimization, cloud execution, and simulated trading. They wrap the math core but do not define the physics.
+*   **Data Rebuild & ETL:**
+    *   **`tools/repack_to_ticker_shards.py`**: **[PENDING]** "The Chrono-Forge". The Architect's DuckDB Map-Reduce engine for spatial-temporal data dispersal.
+*   **Cloud Training (Google Vizier & Vertex AI):**
+    *   **`mac_blitz_v5_ignition.py`**: The master deployment script for the 100-node L4 GPU Wolfpack.
+    *   **`vertex_mae_blitz_v5.py`**: The payload executed on Vertex AI for HPO.
+    *   **`blitz_v5_hpo_config.yaml`**: The Google Vizier hyperparameter search space definitions (searching for `days` and `ticks_per_day`).
+*   **Backtesting:**
+    *   **`omega_parallel_crucible.py`**: The Talebian Oracle backtester. Embarrassingly parallel, isolated event-driven studies.
 
 ---
 
