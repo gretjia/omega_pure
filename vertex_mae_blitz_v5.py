@@ -13,40 +13,10 @@ import numpy as np
 import gcsfs
 import hypertune  
 from torch.utils.data import Dataset, DataLoader
+from omega_2d_folded_mae import SpatioTemporal2DMAE, TimeFoldedDataset
 
 torch.backends.cuda.matmul.allow_tf32 = True
 torch.backends.cudnn.allow_tf32 = True
-
-class EpiplexityMAE(nn.Module):
-    def __init__(self, feature_dim=3, seq_len=512, embed_dim=64, num_heads=4, depth=4, mask_ratio=0.70):
-        super().__init__()
-        self.seq_len = seq_len
-        self.mask_ratio = mask_ratio
-        self.input_proj = nn.Linear(feature_dim, embed_dim)
-        self.pos_embed = nn.Parameter(torch.randn(1, seq_len, embed_dim) * 0.02)
-        self.mask_token = nn.Parameter(torch.zeros(1, 1, embed_dim))
-        encoder_layer = nn.TransformerEncoderLayer(d_model=embed_dim, nhead=num_heads, batch_first=True, activation='gelu')
-        self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=depth)
-        self.output_proj = nn.Linear(embed_dim, feature_dim)
-
-    def forward(self, x):
-        B, T, F = x.shape
-        x_emb = self.input_proj(x) + self.pos_embed
-        noise = torch.rand(B, T, device=x.device)
-        mask = (noise < self.mask_ratio).bool()
-        x_masked = x_emb.clone()
-        x_masked[mask] = self.mask_token
-        
-        latent = self.encoder(x_masked)
-        pred = self.output_proj(latent)
-        
-        mask_float = mask.unsqueeze(-1).float()
-        mse_per_window = ((pred - x) ** 2 * mask_float).sum(dim=1) / (mask_float.sum(dim=1) + 1e-9)
-        mean_x = (x * mask_float).sum(dim=1, keepdim=True) / (mask_float.sum(dim=1, keepdim=True) + 1e-9)
-        var_x_per_window = ((x - mean_x) ** 2 * mask_float).sum(dim=1) / (mask_float.sum(dim=1) + 1e-9)
-        fvu_per_window = mse_per_window / (var_x_per_window + 1e-6)
-        
-        return mse_per_window.mean(), fvu_per_window.mean()
 
 def load_ticker_data_true_physics(gcs_path, limit_files=100):
     print(f"[BLITZ-V5] Loading {limit_files} Ticker Shards for true physical timeline...", flush=True)
@@ -114,27 +84,7 @@ def load_ticker_data_true_physics(gcs_path, limit_files=100):
     full_data.share_memory_()
     return full_data, train_boundaries, val_boundaries
 
-class TickerSafeDataset(Dataset):
-    def __init__(self, data_tensor, boundaries, seq_len, stride):
-        self.data = data_tensor
-        self.span = (seq_len - 1) * stride + 1
-        self.valid_indices = []
-        self.stride = stride
-        
-        # 绝杀：只在同一只股票的边界内进行滑动窗口映射！
-        for start, end in boundaries:
-            if end - start > self.span:
-                self.valid_indices.extend(range(start, end - self.span))
-                
-        if len(self.valid_indices) == 0:
-            raise ValueError(f"Span {self.span} is too large for the provided ticker shards.")
 
-    def __len__(self): 
-        return len(self.valid_indices)
-        
-    def __getitem__(self, idx): 
-        real_idx = self.valid_indices[idx]
-        return self.data[real_idx : real_idx + self.span : self.stride].clone()
 
 @torch.no_grad()
 def fast_validate(model, val_iter, device, max_batches=50):
@@ -156,13 +106,13 @@ def forge_compressor(args):
     hpt_client = hypertune.HyperTune()
     accum_steps = max(1, args.logical_batch_size // args.micro_batch_size)
     
-    print(f"[BLITZ-V5] Physics Engaged | Seq: {args.seq_len} | Stride: {args.stride}", flush=True)
+    print(f"[BLITZ-V5] Physics Engaged | Days: {args.days} | Ticks/Day: {args.ticks_per_day}", flush=True)
     full_data, train_bounds, val_bounds = load_ticker_data_true_physics(args.gcs_input, limit_files=100)
     
-    train_loader = DataLoader(TickerSafeDataset(full_data, train_bounds, args.seq_len, args.stride), batch_size=args.micro_batch_size, shuffle=True, drop_last=True, num_workers=2, pin_memory=True, prefetch_factor=2)
-    val_loader = DataLoader(TickerSafeDataset(full_data, val_bounds, args.seq_len, args.stride), batch_size=args.micro_batch_size, shuffle=True, num_workers=2, pin_memory=True)
+    train_loader = DataLoader(TimeFoldedDataset(full_data, train_bounds, args.days, args.ticks_per_day), batch_size=args.micro_batch_size, shuffle=True, drop_last=True, num_workers=2, pin_memory=True, prefetch_factor=2)
+    val_loader = DataLoader(TimeFoldedDataset(full_data, val_bounds, args.days, args.ticks_per_day), batch_size=args.micro_batch_size, shuffle=True, num_workers=2, pin_memory=True)
     
-    model = EpiplexityMAE(seq_len=args.seq_len).to(device)
+    model = SpatioTemporal2DMAE(days=args.days, ticks_per_day=args.ticks_per_day).to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
     
     def infinite_loader(dl):
@@ -184,7 +134,7 @@ def forge_compressor(args):
             loss.backward()
             
             if torch.isnan(fvu_loss) or torch.isinf(fvu_loss):
-                print(f"🚨 [FATAL] NaN detected. Invalid Physics Stride {args.stride}. Suiciding.", flush=True)
+                print(f"🚨 [FATAL] NaN detected. Invalid Physics Days/Ticks. Suiciding.", flush=True)
                 hpt_client.report_hyperparameter_tuning_metric(hyperparameter_metric_tag='val_fvu', metric_value=9999.0, global_step=logical_step)
                 sys.exit(0)
                 
@@ -214,7 +164,7 @@ if __name__ == "__main__":
     parser.add_argument("--micro_batch_size", type=int, default=64) # 应对 512 的显存消耗
     parser.add_argument("--max_steps", type=int, default=2000) # 提速 HPO
     parser.add_argument("--report_freq", type=int, default=500)
-    parser.add_argument("--seq_len", type=int, default=512)
-    parser.add_argument("--stride", type=int, default=47)
+    parser.add_argument("--days", type=int, default=15)
+    parser.add_argument("--ticks_per_day", type=int, default=64)
     args, _ = parser.parse_known_args()
     forge_compressor(args)

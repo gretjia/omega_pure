@@ -1,0 +1,18 @@
+workerPoolSpecs:
+  - machineSpec:
+      machineType: n1-highmem-32
+    diskSpec:
+      bootDiskType: pd-ssd
+      bootDiskSizeGb: 500
+    replicaCount: 1
+    containerSpec:
+      imageUri: us-docker.pkg.dev/vertex-ai/training/scikit-learn-cpu.0-23:latest
+      command:
+      - bash
+      - -c
+      args:
+      - >
+        gcloud storage cp gs://omega-pure-data/scripts/repack_to_ticker_shards.py . &&
+        pip install duckdb polars pyarrow gcsfs &&
+        mkdir -p /tmp/duckdb_spill &&
+        python3 repack_to_ticker_shards.py --input_dir gs://omega-pure-data/base_matrix_shards --output_dir gs://omega-pure-data/ticker_matrix_shards_v5 --tmp_dir /tmp/duckdb_spill --memory_limit 180GB

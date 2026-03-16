@@ -3,17 +3,21 @@ studySpec:
   - metricId: val_fvu
     goal: MINIMIZE
   parameters:
-  - parameterId: stride
-    integerValueSpec:
-      minValue: 10
-      maxValue: 300
-    scaleType: UNIT_LINEAR_SCALE
-  - parameterId: seq_len
+  - parameterId: days
     discreteValueSpec:
       values:
+      - 3
+      - 5
+      - 8
+      - 13
+      - 21
+  - parameterId: ticks_per_day
+    discreteValueSpec:
+      values:
+      - 16
+      - 32
+      - 64
       - 128
-      - 256
-      - 512
   algorithm: ALGORITHM_UNSPECIFIED
   measurementSelectionType: BEST_MEASUREMENT
 trialJobSpec:
@@ -22,6 +26,9 @@ trialJobSpec:
       machineType: g2-standard-4
       acceleratorType: NVIDIA_L4
       acceleratorCount: 1
+    diskSpec:
+      bootDiskType: pd-ssd
+      bootDiskSizeGb: 100
     replicaCount: 1
     containerSpec:
       imageUri: us-docker.pkg.dev/vertex-ai/training/pytorch-gpu.2-1.py310:latest
@@ -30,8 +37,9 @@ trialJobSpec:
       - -c
       args:
       - >
+        gcloud storage cp gs://omega-pure-data/scripts/omega_2d_folded_mae.py . && 
         gcloud storage cp gs://omega-pure-data/scripts/vertex_mae_blitz_v5.py . && 
-        pip install gcsfs pandas pyarrow numpy cloudml-hypertune && 
+        pip install gcsfs pandas pyarrow numpy cloudml-hypertune python-json-logger && 
         python3 vertex_mae_blitz_v5.py --gcs_input=gs://omega-pure-data/ticker_matrix_shards --logical_batch_size=4096 --micro_batch_size=64 --max_steps=2000 --report_freq=500 "$@"
       - _
   scheduling:

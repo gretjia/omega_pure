@@ -1,0 +1,17 @@
+workerPoolSpecs:
+  - machineSpec:
+      machineType: n1-highmem-64
+    diskSpec:
+      bootDiskType: pd-ssd
+      bootDiskSizeGb: 500
+    replicaCount: 1
+    containerSpec:
+      imageUri: us-docker.pkg.dev/vertex-ai/training/tf-cpu.2-14.py310:latest
+      command:
+      - bash
+      - -c
+      args:
+      - >
+        pip install pandas gcsfs pyarrow fastparquet &&
+        gcloud storage cp gs://omega-pure-data/scripts/cloud_math_proof.py . &&
+        python3 cloud_math_proof.py

@@ -13,14 +13,15 @@ def launch_blitzkrieg_v5():
     
     # Upload core script
     subprocess.run(["gcloud", "storage", "cp", "vertex_mae_blitz_v5.py", "gs://omega-pure-data/scripts/vertex_mae_blitz_v5.py"], check=True)
+    subprocess.run(["gcloud", "storage", "cp", "omega_2d_folded_mae.py", "gs://omega-pure-data/scripts/omega_2d_folded_mae.py"], check=True)
     
     # Launch HPO job via gcloud
     cmd = [
         "gcloud", "ai", "hp-tuning-jobs", "create",
         "--region=us-central1",
         "--display-name=omega-hpo-search-v5",
-        "--max-trial-count=200",
-        "--parallel-trial-count=100",
+        "--max-trial-count=4",
+        "--parallel-trial-count=2",
         "--config=blitz_v5_hpo_config.yaml",
         "--project=gen-lang-client-0250995579"
     ]
