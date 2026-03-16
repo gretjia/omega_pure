@@ -44,7 +44,7 @@ These files handle data movement, model optimization, cloud execution, and simul
 ---
 
 ## 3. Deprecated Modules (Do Not Execute)
-The following files are retained *only* for historical context. They suffer from fatal hardware incompatibilities (AMD ROCm segfaults) or architectural flaws (dropping `symbol` columns). **Do not use them to generate data:**
-*   `omega_tensor_materializer.py` (Legacy JAX, drops symbols, OOMs on large clusters)
-*   `omega_tensor_materializer_pytorch.py` (and its `_patched` variants - segfaults Linux Kernel via libamdhip64.so)
-*   `omega_epiplexity_forge.py` (and `_pytorch.py` - the underlying kernels causing the GPU crashes)
+The following files have been moved to the `archive/` directory and are retained *only* for historical context. They suffer from fatal hardware incompatibilities (AMD ROCm segfaults) or architectural flaws (dropping `symbol` columns). **Do not use them to generate data:**
+*   `archive/omega_tensor_materializer.py` (Legacy JAX, drops symbols, OOMs on large clusters)
+*   `archive/omega_tensor_materializer_pytorch.py` (and its `_patched` variants - segfaults Linux Kernel via libamdhip64.so)
+*   `archive/omega_epiplexity_forge.py` (and `_pytorch.py` - the underlying kernels causing the GPU crashes)
